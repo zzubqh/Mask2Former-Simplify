@@ -28,7 +28,7 @@ Decoder: DefomTransformer + CrossAtten + SelfAtten结构，参见Mask2Former源�
     # cv2.imwrite(output_path, semantic_result)     
 ```
 <div align="center">
-  <img src="https://github.com/zzubqh/Mask2Former-Simplify/blob/master/output/output.png" width="100%" height="100%"/>
+  <img src="https://github.com/zzubqh/Mask2Former-Simplify/tree/master/output/output.png" width="100%" height="100%"/>
 </div><br/>
 
 # 模型训练
