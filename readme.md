@@ -27,8 +27,9 @@ Decoder: DefomTransformer + CrossAtten + SelfAtten结构，参见Mask2Former源�
     # semantic_result = v.draw_sem_seg(mask_img).get_image()
     # cv2.imwrite(output_path, semantic_result)     
 ```
-[](output/output.png)
-
+<div align="center">
+  <img src="https://github.com/zzubqh/Mask2Former-Simplify/raw/master/output/output.png" width="100%" height="100%"/>
+</div><br/>
 # 模型训练
 1. 数据集准备，下载ADEChallengeData2016数据集，解压到你指定的文件夹下，比如：/home/xx/data
 2. 配置Base-segmention.yaml文件，修改DATASETS.ROOT_DIR为第一步数据集所在文件夹，比如：ROOT_DIR: '/home/dataset/'
