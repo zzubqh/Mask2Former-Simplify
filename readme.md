@@ -47,3 +47,6 @@ python -m torch.distributed.launch --nproc_per_node=2 main.py；
 2. 编写*.odgt文件，格式参考dataset/training.odgt
 3. 修改配置文件中的DATASETS.TRAIN和DATASETS.VALID分别为自定义文件路径，修改ROOT_DIR为image和label文件上级目录的父文件夹，同时修改PIXEL_MEAN和PIXEL_STD为自定义数据集的均值方差
 4. 修改maskformer_ake150.yaml中的MODEL.SEM_SEG_HEAD.NUM_CLASSES为自定义数据集的类别数，此处不包含背景类
+
+# 源码解析
+网络结构和源码解析请参考：[Mask2Former源码解析](https://zhuanlan.zhihu.com/p/580645115)
