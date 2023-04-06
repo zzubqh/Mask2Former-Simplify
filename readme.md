@@ -9,7 +9,7 @@ cite: https://github.com/facebookresearch/Mask2Former
 
 # Network architecture
 backbone: resnet50\
-Decoder: DefomTransformer + CrossAtten + SelfAtten结构，参见Mask2Former源码中的的PixelDecoder + TransformerDecoder
+Decoder: DefomTransformer + CrossAtten + SelfAtten
 
 # Running Environment
 * Inference Testing: Memory above 16GB; GPU VRAM above 4GB
