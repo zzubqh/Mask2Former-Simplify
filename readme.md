@@ -1,5 +1,5 @@
 # Mask2Former-Simplify
-cite: https://github.com/facebookresearch/Mask2Former\
+cite: https://github.com/facebookresearch/Mask2Former
 # Description
 * Remove the dependency on the detectron2 framework.
 * Modify the data loading method to train by epoch instead of iteration, with a default of 300 epochs.
