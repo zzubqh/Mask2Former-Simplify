@@ -47,5 +47,5 @@ python -m torch.distributed.launch --nproc_per_node=2 main.py；
 4. Modify MODEL.SEM_SEG_HEAD.NUM_CLASSES in maskformer_ake150.yaml to the number of classes in the custom dataset, excluding the background class.
 
 # Source Code Analysis
-Please refer to the network structure and source code analysis：[Mask2Former源码解析](https://zhuanlan.zhihu.com/p/580645115)
+Please refer to the network structure and source code analysis：[Mask2Former源码解析](https://zhuanlan.zhihu.com/p/580645115)\
 cite: https://github.com/facebookresearch/Mask2Former
