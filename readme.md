@@ -1,5 +1,3 @@
-# Mask2Former-Simplify
-cite: https://github.com/facebookresearch/Mask2Former
 # Description
 * Remove the dependency on the detectron2 framework.
 * Modify the data loading method to train by epoch instead of iteration, with a default of 300 epochs.
@@ -50,3 +48,4 @@ python -m torch.distributed.launch --nproc_per_node=2 main.py；
 
 # Source Code Analysis
 Please refer to the network structure and source code analysis：[Mask2Former源码解析](https://zhuanlan.zhihu.com/p/580645115)
+cite: https://github.com/facebookresearch/Mask2Former
