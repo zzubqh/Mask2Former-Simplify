@@ -1,3 +1,16 @@
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+'''
+@File    :   dataset.py
+@Time    :   2023/04/06 22:39:31
+@Author  :   BQH 
+@Version :   1.0
+@Contact :   raogx.vip@hotmail.com
+@License :   (C)Copyright 2017-2018, Liugroup-NLPR-CASIA
+@Desc    :   None
+'''
+
+# here put the import lib
 import os
 import json
 import torch
@@ -105,7 +118,7 @@ class ADE200kDataset(BaseDataset):
         self.segm_downsampling_rate = opt.MODEL.SEM_SEG_HEAD.COMMON_STRIDE # 网络输出相对于输入缩小的倍数
         self.dynamic_batchHW = dynamic_batchHW  # 是否动态调整batchHW, cswin_transformer需要使用固定image size
         self.num_querys = opt.MODEL.MASK_FORMER.NUM_OBJECT_QUERIES
-        self.visualize = ADEVisualize()
+        # self.visualize = ADEVisualize()
 
         self.aug_pipe = self.get_data_aug_pipe()
 
