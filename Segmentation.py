@@ -14,8 +14,8 @@ from modeling.MaskFormerModel import MaskFormerModel
 from utils.misc import load_parallal_model
 from utils.misc import ADEVisualize
 
-from detectron2.utils.visualizer import Visualizer, ColorMode
-from detectron2.data import MetadataCatalog
+# from detectron2.utils.visualizer import Visualizer, ColorMode
+# from detectron2.data import MetadataCatalog
 
 class Segmentation():
     def __init__(self, cfg):
@@ -115,7 +115,7 @@ class Segmentation():
 
     @torch.no_grad()
     def forward(self, img_list=None):
-        ade20k_metadata = MetadataCatalog.get("ade20k_sem_seg_val")
+        # ade20k_metadata = MetadataCatalog.get("ade20k_sem_seg_val")
         if img_list is None or len(img_list) == 0:
             img_list = glob.glob(self.test_dir + '/*.[jp][pn]g')
         
@@ -141,7 +141,7 @@ class Segmentation():
             mask_img = np.argmax(pred_masks, axis=1)[0]
 
             mask_img = self.postprocess(mask_img, transformer_info, (img_width, img_height))
-            # self.visualize.show_result(img, mask_img, output_path)
-            v = Visualizer(np.array(img), ade20k_metadata, scale=1.2, instance_mode=ColorMode.IMAGE_BW)
-            semantic_result = v.draw_sem_seg(mask_img).get_image()
-            cv2.imwrite(output_path, semantic_result)            
+            self.visualize.show_result(img, mask_img, output_path)
+            # v = Visualizer(np.array(img), ade20k_metadata, scale=1.2, instance_mode=ColorMode.IMAGE_BW)
+            # semantic_result = v.draw_sem_seg(mask_img).get_image()
+            # cv2.imwrite(output_path, semantic_result)            

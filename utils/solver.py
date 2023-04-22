@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Type, Uni
 import torch
 from fvcore.common.param_scheduler import CosineParamScheduler, MultiStepParamScheduler
 
-from detectron2.config import CfgNode
+# from detectron2.config import CfgNode
 
 _GradientClipperInput = Union[torch.Tensor, Iterable[torch.Tensor]]
 _GradientClipper = Callable[[_GradientClipperInput], None]
@@ -18,7 +18,7 @@ class GradientClipType(Enum):
     NORM = "norm"
 
 
-def _create_gradient_clipper(cfg: CfgNode) -> _GradientClipper:
+def _create_gradient_clipper(cfg) -> _GradientClipper:
     """
     Creates gradient clipping closure to clip by value or by norm,
     according to the provided config.
@@ -73,7 +73,7 @@ def _generate_optimizer_class_with_gradient_clipping(
 
 
 def maybe_add_gradient_clipping(
-    cfg: CfgNode, optimizer: Type[torch.optim.Optimizer]
+    cfg, optimizer: Type[torch.optim.Optimizer]
 ) -> Type[torch.optim.Optimizer]:
     """
     If gradient clipping is enabled through config options, wraps the existing
