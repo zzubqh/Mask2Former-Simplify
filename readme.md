@@ -1,10 +1,13 @@
+# Update 2023.06.16
+* "Modify the configs\Base-segmention.yaml file to add support for SwinTransformer
+* Add the wandb library to the training code
+* Add configs\maskformer_nuimages.yaml to support the Nuimages dataset, and there is no need to install Nuimages Toolkit
 # Description
 * Remove the dependency on the detectron2 framework.
 * Modify the data loading method to train by epoch instead of iteration, with a default of 300 epochs.
 * Modify the data augmentation to use imgaug.
 * Only the demo for semantic segmentation has been completed, and no instance segmentation code has been written.
 * Only resnet50 has been trained as the backbone, and swin has not been debugged.
->>>>>>> b7c1ed0e8147b21194310073e92fc86eeddbda12
 
 # Network architecture
 backbone: resnet50\
@@ -47,6 +50,52 @@ python -m torch.distributed.launch --nproc_per_node=2 main.py；
 3. Modify the DATASETS.TRAIN and DATASETS.VALID paths in the configuration file to the custom file paths, modify ROOT_DIR to the parent folder of the image and label files, and modify PIXEL_MEAN and PIXEL_STD to the mean and variance of the custom dataset.
 4. Modify MODEL.SEM_SEG_HEAD.NUM_CLASSES in maskformer_ake150.yaml to the number of classes in the custom dataset, excluding the background class.
 
+# Nuimage Dataset (Optional)
+1. Download Dataset from [nuimages](https://www.nuscenes.org/nuimages)
+2. The folder after decompression is shown as follows
+```
+|-- nuimages-v1.0-all-samples
+    |-- samples
+    |   |-- CAM_BACK
+    |   |-- CAM_BACK_LEFT
+    |   |-- CAM_BACK_RIGHT
+    |   |-- CAM_FRONT
+    |   |-- CAM_FRONT_LEFT
+    |   `-- CAM_FRONT_RIGHT
+    |-- v1.0-test
+    |   |-- attribute.json
+    |   |-- calibrated_sensor.json
+    |   |-- category.json
+    |   |-- ego_pose.json
+    |   |-- log.json
+    |   |-- object_ann.json
+    |   |-- sample.json
+    |   |-- sample_data.json
+    |   |-- sensor.json
+    |   `-- surface_ann.json
+    |-- v1.0-train
+    |   |-- attribute.json
+    |   |-- calibrated_sensor.json
+    |   |-- category.json
+    |   |-- ego_pose.json
+    |   |-- log.json
+    |   |-- object_ann.json
+    |   |-- sample.json
+    |   |-- sample_data.json
+    |   |-- sensor.json
+    |   `-- surface_ann.json
+    `-- v1.0-val
+        |-- attribute.json
+        |-- calibrated_sensor.json
+        |-- category.json
+        |-- ego_pose.json
+        |-- log.json
+        |-- object_ann.json
+        |-- sample.json
+        |-- sample_data.json
+        |-- sensor.json
+        `-- surface_ann.json
+```
 # Source Code Analysis
 Please refer to the network structure and source code analysis：[Mask2Former源码解析](https://zhuanlan.zhihu.com/p/580645115)\
 cite: https://github.com/facebookresearch/Mask2Former
