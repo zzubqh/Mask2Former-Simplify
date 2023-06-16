@@ -17,13 +17,17 @@ import torch
 import numpy as np
 import os
 import time
+import datetime
 from torch import nn
 from torch.nn import functional as F
 import torch.optim as optim
 from torch import distributed as dist
-from collections import OrderedDict
+from torch.utils.data import DataLoader, SubsetRandomSampler
 import sys
+import math
 import itertools
+from PIL import Image
+import wandb
 
 from modeling.MaskFormerModel import MaskFormerModel
 from utils.criterion import SetCriterion, Criterion
@@ -31,6 +35,8 @@ from utils.matcher import HungarianMatcher
 from utils.summary import create_summary
 from utils.solver import maybe_add_gradient_clipping
 from utils.misc import load_parallal_model
+from dataset.NuImages import NuImages
+from Segmentation import Segmentation
 
 class MaskFormer():
     def __init__(self, cfg):
@@ -46,15 +52,22 @@ class MaskFormer():
         self.start_epoch = 0
 
         self.model = MaskFormerModel(cfg)
-        if os.path.exists(cfg.MODEL.PRETRAINED_WEIGHTS):
+        if cfg.MODEL.PRETRAINED_WEIGHTS is not None and os.path.exists(cfg.MODEL.PRETRAINED_WEIGHTS):
             self.load_model(cfg.MODEL.PRETRAINED_WEIGHTS)
             print("loaded pretrain mode:{}".format(cfg.MODEL.PRETRAINED_WEIGHTS))
 
         self.model = self.model.to(self.device)
         if cfg.ngpus > 1:
-            self.model = nn.parallel.DistributedDataParallel(self.model, device_ids=[cfg.local_rank], output_device=cfg.local_rank) 
-            
+            self.model = nn.parallel.DistributedDataParallel(self.model, device_ids=[cfg.local_rank], output_device=cfg.local_rank)             
+
         self._training_init(cfg)
+
+        run_name = datetime.datetime.now().strftime("swin-%Y-%m-%d-%H-%M")
+        self.run = wandb.init(
+            project=cfg.project_name,
+            name=run_name
+        )
+        wandb.watch(self.model)
 
     def build_optimizer(self):
         def maybe_add_full_model_gradient_clipping(optim):
@@ -94,8 +107,8 @@ class MaskFormer():
         print('loaded pretrained weights form %s !' % pretrain_weights)
 
         ckpt_dict = state_dict['model']
-        self.last_lr = 1e-4 # state_dict['lr']
-        self.start_epoch = 0 # state_dict['epoch']
+        self.last_lr = 6e-5 # state_dict['lr']
+        self.start_epoch = 70 # state_dict['epoch']
         self.model = load_parallal_model(self.model, ckpt_dict)
 
     def _training_init(self, cfg):
@@ -107,10 +120,9 @@ class MaskFormer():
         class_weight = cfg.MODEL.MASK_FORMER.CLASS_WEIGHT
         dice_weight = cfg.MODEL.MASK_FORMER.DICE_WEIGHT
         mask_weight = cfg.MODEL.MASK_FORMER.MASK_WEIGHT
-        # self.criterion = Criterion(self.num_classes)
+        boundary_weight = cfg.MODEL.MASK_FORMER.BOUNDARY_WEIGHT
 
         # building criterion
-
         matcher = HungarianMatcher(
             cost_class=class_weight,
             cost_mask=mask_weight,
@@ -151,17 +163,23 @@ class MaskFormer():
         return rt
 
     def train(self, train_sampler, data_loader, eval_loder, n_epochs):
-        max_score = 0.6
+        max_score = 0.88
         for epoch in range(self.start_epoch + 1, n_epochs):
             if train_sampler is not None:
                 train_sampler.set_epoch(epoch)
-            self.train_epoch(data_loader, epoch)
+            train_loss = self.train_epoch(data_loader, epoch)
             evaluator_score = self.evaluate(eval_loder)
+            evaluator_samples = self.evaluate_sample()
             self.scheduler.step(evaluator_score)
-            self.summary_writer.add_scalar('val_dice_score', evaluator_score, epoch)
+            # self.summary_writer.add_scalar('val_dice_score', evaluator_score, epoch)
+            wandb.log({
+                    "evaluator_score": evaluator_score,
+                    "train_loss": train_loss,
+                    "samples": [wandb.Image(sample) for sample in evaluator_samples],
+                })
             if evaluator_score > max_score:
                 max_score = evaluator_score
-                ckpt_path = os.path.join(self.save_folder, 'mask2former_Epoch{0}_dice{1}.pth'.format(epoch, max_score))
+                ckpt_path = os.path.join(self.save_folder, 'mask2former_Epoch{0}_dice{1:.4f}.pth'.format(epoch, max_score))
                 save_state = {'model': self.model.state_dict(),
                               'lr': self.optim.param_groups[0]['lr'],
                               'epoch': epoch}
@@ -177,6 +195,7 @@ class MaskFormer():
         loss_ce_list = []
         loss_dice_list = []
         loss_mask_list = []
+        
         for i, batch in enumerate(data_loader):                     
             inputs = batch['images'].to(device=self.device, non_blocking=True)
             targets = batch['masks']
@@ -195,12 +214,12 @@ class MaskFormer():
                         loss_ce += losses[k]
                     elif '_dice' in k:
                         loss_dice += losses[k]
-                    else:
+                    elif '_mask' in k:
                         loss_mask += losses[k]
                 else:
                     # remove this loss if not specified in `weight_dict`
                     losses.pop(k)
-            loss = 0.3 * loss_ce + 0.3 * loss_dice + 0.4 * loss_mask
+            loss = loss_ce + loss_dice + loss_mask
             with torch.no_grad():
                 losses_list.append(loss.item())
                 loss_ce_list.append(loss_ce.item())
@@ -222,13 +241,14 @@ class MaskFormer():
             sys.stdout.flush()                
         
         self.summary_writer.add_scalar('loss', loss.item(), epoch)
+        return loss.item()
 
     @torch.no_grad()                   
     def evaluate(self, eval_loder):
         self.model.eval()
         # self.criterion.eval()
-
-        dice_score = []        
+        dice_score = []
+        
         for batch in eval_loder:
             inpurt_tensor = batch['images'].to(device=self.device, non_blocking=True)
             gt_mask = batch['masks'][0]
@@ -245,6 +265,27 @@ class MaskFormer():
         score = np.mean(dice_score)
         print('evaluate dice: {0}'.format(score))
         return score
+    
+    @torch.no_grad() 
+    def evaluate_sample(self):        
+        nuim = NuImages(dataroot=self.cfg.DATASETS.ROOT_DIR, version='v1.0-test') # v1.0-test or v1.0-mini
+        sample_idx_list = np.random.choice(len(nuim.sample), 10, replace=False)
+        seg_handler = Segmentation(self.cfg, self.model)
+        input_imgs = []
+        render_imgs = []
+        for idx in sample_idx_list:
+            sample = nuim.sample[idx]
+            sd_token = sample['key_camera_token']
+            sample_data = nuim.get('sample_data', sd_token)
+            
+            im_path = os.path.join(nuim.dataroot, sample_data['filename'])
+            input_imgs.append(im_path)
+        preds = seg_handler.forward(input_imgs)
+        for i, img_path in enumerate(input_imgs):
+            img = Image.open(img_path)
+            render_img = nuim.render_predict(img, preds[i])
+            render_imgs.append(render_img)
+        return render_imgs
 
     def _get_dice(self, predict, target):    
         smooth = 1e-5    
@@ -269,6 +310,7 @@ class MaskFormer():
         semseg = torch.einsum("bqc,bqhw->bchw", mask_cls, mask_pred)        
         return semseg
 
+    # 实例分割待调试
     def instance_inference(self, mask_cls, mask_pred):
         # mask_pred is already processed to have the same shape as original input
         image_size = mask_pred.shape[-2:]

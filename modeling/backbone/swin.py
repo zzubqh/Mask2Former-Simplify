@@ -9,13 +9,14 @@
 # Modified by Bowen Cheng from https://github.com/SwinTransformer/Swin-Transformer-Semantic-Segmentation/blob/main/mmseg/models/backbones/swin_transformer.py
 
 import numpy as np
+from addict import Dict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
-from detectron2.modeling import BACKBONE_REGISTRY, Backbone, ShapeSpec
+# from detectron2.modeling import BACKBONE_REGISTRY, Backbone, ShapeSpec
 
 
 class Mlp(nn.Module):
@@ -100,7 +101,7 @@ class WindowAttention(nn.Module):
         self.window_size = window_size  # Wh, Ww
         self.num_heads = num_heads
         head_dim = dim // num_heads
-        self.scale = qk_scale or head_dim ** -0.5
+        self.scale = head_dim ** -0.5 if qk_scale is None else qk_scale
 
         # define a parameter table of relative position bias
         self.relative_position_bias_table = nn.Parameter(
@@ -683,9 +684,8 @@ class SwinTransformer(nn.Module):
         self._freeze_stages()
 
 
-@BACKBONE_REGISTRY.register()
-class D2SwinTransformer(SwinTransformer, Backbone):
-    def __init__(self, cfg, input_shape):
+class D2SwinTransformer(SwinTransformer):
+    def __init__(self, cfg):
 
         pretrain_img_size = cfg.MODEL.SWIN.PRETRAIN_IMG_SIZE
         patch_size = cfg.MODEL.SWIN.PATCH_SIZE
@@ -758,13 +758,11 @@ class D2SwinTransformer(SwinTransformer, Backbone):
         return outputs
 
     def output_shape(self):
-        return {
-            name: ShapeSpec(
-                channels=self._out_feature_channels[name], stride=self._out_feature_strides[name]
-            )
-            for name in self._out_features
-        }
-
+        backbone_feature_shape = dict()
+        for name in self._out_features:
+                backbone_feature_shape[name] = Dict({'channel': self._out_feature_channels[name], 'stride': self._out_feature_strides[name]})
+        return backbone_feature_shape
+    
     @property
     def size_divisibility(self):
         return 32

@@ -14,11 +14,11 @@ from modeling.MaskFormerModel import MaskFormerModel
 from utils.misc import load_parallal_model
 from utils.misc import ADEVisualize
 
-from detectron2.utils.visualizer import Visualizer, ColorMode
-from detectron2.data import MetadataCatalog
+# from detectron2.utils.visualizer import Visualizer, ColorMode
+# from detectron2.data import MetadataCatalog
 
 class Segmentation():
-    def __init__(self, cfg):
+    def __init__(self, cfg, model=None):
         self.cfg = cfg
         self.num_queries = cfg.MODEL.MASK_FORMER.NUM_OBJECT_QUERIES
         self.size_divisibility = cfg.MODEL.MASK_FORMER.SIZE_DIVISIBILITY
@@ -32,12 +32,17 @@ class Segmentation():
         self.imgMaxSize = cfg.INPUT.CROP.MAX_SIZE
         self.pixel_mean = np.array(cfg.DATASETS.PIXEL_MEAN)
         self.pixel_std = np.array(cfg.DATASETS.PIXEL_STD)
-        self.visualize = ADEVisualize()
-        self.model = MaskFormerModel(cfg)
+        self.visualize = ADEVisualize()        
+        self.model = None
 
         pretrain_weights = cfg.MODEL.PRETRAINED_WEIGHTS
-        assert os.path.exists(pretrain_weights), f'please check weights file: {cfg.MODEL.PRETRAINED_WEIGHTS}'
-        self.load_model(pretrain_weights)
+        if model is not None:
+            self.model = model
+        elif os.path.exists(pretrain_weights): 
+            self.model = MaskFormerModel(cfg, is_init=False)
+            self.load_model(pretrain_weights)
+        else:
+            print(f'please check weights file: {cfg.MODEL.PRETRAINED_WEIGHTS}')
         
     def load_model(self, pretrain_weights):
         state_dict = torch.load(pretrain_weights, map_location='cuda:0')
@@ -83,9 +88,19 @@ class Segmentation():
         img = ImageOps.expand(img, border=(left, top, right, bottom), fill=0)  # 左 顶 右 底 顺时针
         return img, [left, top, right, bottom]
 
+    def get_img_ratio(self, img_size, target_size):
+        img_rate = np.max(img_size) / np.min(img_size)
+        target_rate = np.max(target_size) / np.min(target_size)
+        if img_rate > target_rate:
+            # 按长边缩放
+            ratio = max(target_size) / max(img_size)
+        else:
+            ratio = min(target_size) / min(img_size)
+        return ratio
+    
     def image_preprocess(self, img):
         img_height, img_width = img.shape[0], img.shape[1]
-        this_scale = self.imgMaxSize / max(img_height, img_width)
+        this_scale = self.get_img_ratio((img_width, img_height), self.imgMaxSize) # self.imgMaxSize / max(img_height, img_width)
         target_width = img_width * this_scale
         target_height = img_height * this_scale
         input_width = int(self.round2nearest_multiple(target_width, self.padding_constant))
@@ -114,15 +129,14 @@ class Segmentation():
         return mask
 
     @torch.no_grad()
-    def forward(self, img_list=None):
-        ade20k_metadata = MetadataCatalog.get("ade20k_sem_seg_val")
+    def forward(self, img_list=None):        
         if img_list is None or len(img_list) == 0:
             img_list = glob.glob(self.test_dir + '/*.[jp][pn]g')
-        
+        mask_images = []
         for image_path in tqdm.tqdm(img_list):
-            img_name = os.path.basename(image_path)
-            seg_name = img_name.split('.')[0] + '_seg.png'
-            output_path = os.path.join(self.output_dir, seg_name)
+            # img_name = os.path.basename(image_path)
+            # seg_name = img_name.split('.')[0] + '_seg.png'
+            # output_path = os.path.join(self.output_dir, seg_name)
             img = Image.open(image_path).convert('RGB')
             img_height, img_width = img.size[1], img.size[0]
             inpurt_tensor, transformer_info = self.image_preprocess(np.array(img))       
@@ -139,9 +153,20 @@ class Segmentation():
             )
             pred_masks = self.semantic_inference(mask_cls_results, mask_pred_results)
             mask_img = np.argmax(pred_masks, axis=1)[0]
-
             mask_img = self.postprocess(mask_img, transformer_info, (img_width, img_height))
-            # self.visualize.show_result(img, mask_img, output_path)
-            v = Visualizer(np.array(img), ade20k_metadata, scale=1.2, instance_mode=ColorMode.IMAGE_BW)
-            semantic_result = v.draw_sem_seg(mask_img).get_image()
-            cv2.imwrite(output_path, semantic_result)            
+            mask_images.append(mask_img)
+        return mask_images
+                    
+
+    def render_image(self, img, mask_img, output_path=None):
+        self.visualize.show_result(img, mask_img, output_path)
+
+        # ade20k_metadata = MetadataCatalog.get("ade20k_sem_seg_val")        
+        # v = Visualizer(np.array(img), ade20k_metadata, scale=1.2, instance_mode=ColorMode.IMAGE_BW)
+        # semantic_result = v.draw_sem_seg(mask_img).get_image()
+        # if output_path is not None:
+        #     cv2.imwrite(output_path, semantic_result)
+        # else:
+        #     cv2.imshow(semantic_result)
+        #     cv2.waitKey(0)
+

@@ -15,6 +15,7 @@ from torch import nn
 from addict import Dict
 
 from .backbone.resnet import ResNet, resnet_spec
+from .backbone.swin import D2SwinTransformer
 from .pixel_decoder.msdeformattn import MSDeformAttnPixelDecoder
 from .transformer_decoder.mask2former_transformer_decoder import MultiScaleMaskedTransformerDecoder
 
@@ -84,17 +85,26 @@ class MaskFormerModel(nn.Module):
 
     def build_backbone(self, cfg):
         model_type = cfg.MODEL.BACKBONE.TYPE
-        assert model_type == 'resnet18' or model_type == 'resnet34' or model_type == 'resnet50', 'Do not support model type!'
-
-        channels = [64, 128, 256, 512]
-        if int(model_type[6:]) > 34:
-            channels = [item * 4 for item in channels]
-
-        backbone = ResNet(resnet_spec[model_type][0], resnet_spec[model_type][1])
-        # backbone.init_weights()
-        self.backbone_feature_shape = dict()
-        for i, channel in enumerate(channels):
-            self.backbone_feature_shape[f'res{i+2}'] = Dict({'channel': channel, 'stride': 2**(i+2)})
+        if model_type == 'resnet':            
+            channels = [64, 128, 256, 512]
+            if cfg.MODEL.RESNETS.DEPTH > 34:
+                channels = [item * 4 for item in channels]
+            backbone = ResNet(resnet_spec[model_type][0], resnet_spec[model_type][1])
+            # backbone.init_weights()
+            self.backbone_feature_shape = dict()
+            for i, channel in enumerate(channels):
+                self.backbone_feature_shape[f'res{i+2}'] = Dict({'channel': channel, 'stride': 2**(i+2)})
+        elif model_type == 'swin':
+            swin_depth = {'tiny': [2, 2, 6, 2], 'small': [2, 2, 18, 2], 'base': [2, 2, 18, 2], 'large': [2, 2, 18, 2]}
+            swin_heads = {'tiny': [3, 6, 12, 24], 'small': [3, 6, 12, 24], 'base': [4, 8, 16, 32], 'large': [6, 12, 24, 48]}
+            swin_dim = {'tiny':96, 'small': 96, 'base': 128, 'large': 192}
+            cfg.MODEL.SWIN.DEPTHS = swin_depth[cfg.MODEL.SWIN.TYPE]
+            cfg.MODEL.SWIN.NUM_HEADS = swin_heads[cfg.MODEL.SWIN.TYPE]
+            cfg.MODEL.SWIN.EMBED_DIM = swin_dim[cfg.MODEL.SWIN.TYPE]
+            backbone = D2SwinTransformer(cfg)
+            self.backbone_feature_shape = backbone.output_shape()
+        else:
+            raise NotImplementedError('Do not support model type!')
         return backbone
 
     def forward(self, inputs):

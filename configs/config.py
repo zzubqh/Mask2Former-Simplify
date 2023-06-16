@@ -84,11 +84,11 @@ class Config(object):
                 for name, value in mod.__dict__.items()
                 if not name.startswith('__')
             }
-        elif filename.endswith(('.yml', '.yaml', '.json')):
-            import mmcv
-            cfg_dict = mmcv.load(filename)
+        elif filename.endswith(('.yml', '.yaml')):
+            from yaml import safe_load
+            cfg_dict = safe_load(open(filename, 'r')) # yaml.load(open(filename, 'r'), Loader=yaml.FullLoader)
         else:
-            raise IOError('Only py/yml/yaml/json type are supported now!')
+            raise IOError('Only py/yml/yaml type are supported now!')
         return Config(cfg_dict, filename=filename)
 
     @staticmethod

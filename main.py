@@ -14,13 +14,13 @@
 
 import argparse
 import os
-os.environ['CUDA_VISIBLE_DEVICES']='0,1' # 1,2,3,4
+os.environ['CUDA_VISIBLE_DEVICES']='0,1,2,3,4,5,6,7'  # 
 
 from fvcore.common.config import CfgNode
 from configs.config import Config
 import torch
 from maskformer_train import MaskFormer
-from dataset.dataset import ADE200kDataset
+from dataset.dataset import ADE200kDataset, NuImagesDataset
 from Segmentation import Segmentation
 
 if torch.cuda.device_count() > 1:
@@ -34,9 +34,10 @@ def user_scattered_collate(batch):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='configs/maskformer_ake150.yaml')
+    parser.add_argument('--config', type=str, default='configs/maskformer_nuimages.yaml')
     parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument("--ngpus", default=1, type=int)
+    parser.add_argument("--project_name", default='NuImages_swin_base_Seg', type=str)
 
     args = parser.parse_args()
     cfg_ake150 = Config.fromfile(args.config)
@@ -57,7 +58,7 @@ def get_args():
     return cfg
 
 
-def train():
+def train_ade200k():
     cfg = get_args()
     dataset_train = ADE200kDataset(cfg.DATASETS.TRAIN, cfg, dynamic_batchHW=True)
     if cfg.ngpus > 1:
@@ -85,12 +86,47 @@ def train():
     seg_model = MaskFormer(cfg)
     seg_model.train(train_sampler, loader_train, loader_eval, cfg.TRAIN.EPOCH)
 
+def train_nuimages():
+    cfg = get_args()
+    dataset_train = NuImagesDataset(cfg.DATASETS.ROOT_DIR, cfg, version='v1.0-train') # v1.0-mini or v1.0-train
+    dataset_eval = NuImagesDataset(cfg.DATASETS.ROOT_DIR, cfg, version='v1.0-val') # v1.0-mini or v1.0-val
+
+    if cfg.ngpus > 1:
+        train_sampler = torch.utils.data.distributed.DistributedSampler(dataset_train, rank=cfg.local_rank)
+        eval_sampler = torch.utils.data.distributed.DistributedSampler(dataset_eval, rank=cfg.local_rank)
+    else:
+        train_sampler = None     
+        eval_sampler = None
+
+    loader_train = torch.utils.data.DataLoader(
+        dataset_train,
+        batch_size=cfg.TRAIN.BATCH_SIZE,
+        shuffle=False if train_sampler is not None else True,  
+        collate_fn=dataset_train.collate_fn,
+        num_workers=cfg.TRAIN.WORKERS,
+        drop_last=True,
+        pin_memory=True,
+        sampler=train_sampler)
+    
+    loader_eval = torch.utils.data.DataLoader(
+        dataset_eval,
+        batch_size=1,
+        shuffle=False if eval_sampler is not None else True,  
+        collate_fn=dataset_eval.collate_fn,
+        num_workers=cfg.TRAIN.WORKERS,
+        drop_last=False,
+        pin_memory=True,
+        sampler=eval_sampler)
+
+    seg_model = MaskFormer(cfg)
+    seg_model.train(train_sampler, loader_train, loader_eval, cfg.TRAIN.EPOCH)
 
 def segmentation_test():
     cfg = get_args()
     segmentation_handler = Segmentation(cfg)
     segmentation_handler.forward()
+    
 
 if __name__ == '__main__':
-    # train()
-    segmentation_test()
+    train_nuimages()
+    # segmentation_test()
