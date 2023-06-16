@@ -16,6 +16,8 @@ from utils.misc import ADEVisualize
 
 # from detectron2.utils.visualizer import Visualizer, ColorMode
 # from detectron2.data import MetadataCatalog
+# from detectron2.utils.visualizer import Visualizer, ColorMode
+# from detectron2.data import MetadataCatalog
 
 class Segmentation():
     def __init__(self, cfg, model=None):
