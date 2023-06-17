@@ -1,7 +1,10 @@
 # Update 2023.06.16
 * "Modify the configs\Base-segmention.yaml file to add support for SwinTransformer
-* Add the wandb library to the training code
 * Add configs\maskformer_nuimages.yaml to support the Nuimages dataset, and there is no need to install Nuimages Toolkit
+* Add the wandb library to the training code, and you can see the training process on the Wandb website
+<div align="center">
+  <img src="https://github.com/zzubqh/Mask2Former-Simplify/raw/master/output/traing.png" width="100%" height="100%"/>
+</div><br/>
 # Description
 * Remove the dependency on the detectron2 framework.
 * Modify the data loading method to train by epoch instead of iteration, with a default of 300 epochs.
