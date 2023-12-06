@@ -21,7 +21,7 @@ Decoder: DefomTransformer + CrossAtten + SelfAtten
 * Network Training: Depending on the size of the image and the number of decoding layers, it is recommended to use 2 x 3090 GPUs with a batch size of 6 when the maximum image size is 512 and the number of decoding layers is 4.
 # Usage
 1. Install the packages listed in requirements.txt. Tested on Ubuntu 20.04 and should work on Windows as well.
-2. Download the model [mask2former_resnet50](https://pan.baidu.com/s/16EsPxfn0L9ZoF-YtNY5KwA) with extraction code "usyz".
+2. Download the model [mask2former_resnet50](https://pan.baidu.com/s/1uGyqM18JuGoIJSq4s8HYGw) with extraction code "d7co".
 3. Copy the model to the "ckpt" folder in the project.
 4. Copy the test images to the "test" folder or any other specified folder (if the user specifies a folder, configure the folder path in Base-segmention.yaml under TEST.TEST_DIR). The default results will be output to the "output" folder, but you can configure your own save directory using TEST.SAVE_DIR.
 5. By default, the visualizer class from detectron2 is used for output display. If you do not want to install detectron2 or have problems after installation, you can also use the display method provided in the project, which differs from detectron2 in that it does not display the class names. To use the display method, modify Segmentation.py as follows: (1) comment out lines 17, 18, and 118 for importing and initializing detectron2; (2) uncomment line 144 for display; (3) comment out lines 145 to 147.(默认使用了detectron2中的visualizer类进行输出显示，如果不想安装detectron2或者安装后有问题，也可使用项目中的显示方式，与detectron2的区别在于没有对显示出类别名称，其余保持一致。对Segmentation.py进行如下修改：(1)注释掉17、18行和118行对detectron2包的引入和初始化；(2)放开第144行的显示调用；(3)注释掉145到147行即可)
